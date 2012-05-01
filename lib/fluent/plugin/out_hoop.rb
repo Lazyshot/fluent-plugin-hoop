@@ -261,20 +261,7 @@ class Fluent::HoopOutput < Fluent::TimeSlicedOutput
     super
 
     # okey, net/http has reconnect feature. see test_out_hoop_reconnect.rb
-    conn = Net::HTTP.start(@host, @port)
-    begin
-      res = conn.request_get("/?op=status&user.name=#{@username}")
-      if res.code.to_i < 300 and res['Set-Cookie']
-        @authorized_header = {'Cookie' => res['Set-Cookie'].split(';')[0], 'Content-Type' => 'application/octet-stream'}
-      else
-        $log.error "initalize request failed, code: #{res.code}, message: #{res.body}"
-        raise Fluent::ConfigError, "initalize request failed, code: #{res.code}, message: #{res.body}"
-      end
-    rescue
-      $log.error "failed to connect hoop server: #{@host} port #{@port}"
-      raise
-    end
-    conn.finish
+    @authorized_header = {'Content-Type' => 'application/octet-stream'}
     $log.info "connected hoop server: #{@host} port #{@port}"
   end
 
@@ -300,14 +287,7 @@ class Fluent::HoopOutput < Fluent::TimeSlicedOutput
     conn.read_timeout = 5
     res = conn.request_put("/webhdfs/v1" + path + "?op=append", data, @authorized_header)
     if res.code == '401'
-      res = conn.request_get("/?op=status&user.name=#{@username}")
-      if res.code.to_i < 300 and res['Set-Cookie']
-        @authorized_header = {'Cookie' => res['Set-Cookie'].split(';')[0], 'Content-Type' => 'application/octet-stream'}
-      else
-        $log.error "Failed to update authorized cookie, code: #{res.code}, message: #{res.body}"
-        raise Fluent::ConfigError, "Failed to update authorized cookie, code: #{res.code}, message: #{res.body}"
-      end
-      res = conn.request_put("/webhdfs/v1" + path + "?op=append", data, @authorized_header)
+      $log.error "Failed to append, code: #{res.code}, message: #{res.body}"
     end
     if res.code == '404'
       res = conn.request_post("/webhdfs/v1" + path + "?op=create&overwrite=false", data, @authorized_header)
