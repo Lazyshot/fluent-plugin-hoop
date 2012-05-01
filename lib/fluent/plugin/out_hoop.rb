@@ -298,7 +298,7 @@ class Fluent::HoopOutput < Fluent::TimeSlicedOutput
   def send_data(path, data, retries=0)
     conn = Net::HTTP.start(@host, @port)
     conn.read_timeout = 5
-    res = conn.request_put(path + "?op=append", data, @authorized_header)
+    res = conn.request_put("/webhdfs/v1" + path + "?op=append", data, @authorized_header)
     if res.code == '401'
       res = conn.request_get("/?op=status&user.name=#{@username}")
       if res.code.to_i < 300 and res['Set-Cookie']
@@ -307,10 +307,10 @@ class Fluent::HoopOutput < Fluent::TimeSlicedOutput
         $log.error "Failed to update authorized cookie, code: #{res.code}, message: #{res.body}"
         raise Fluent::ConfigError, "Failed to update authorized cookie, code: #{res.code}, message: #{res.body}"
       end
-      res = conn.request_put(path + "?op=append", data, @authorized_header)
+      res = conn.request_put("/webhdfs/v1" + path + "?op=append", data, @authorized_header)
     end
     if res.code == '404'
-      res = conn.request_post(path + "?op=create&overwrite=false", data, @authorized_header)
+      res = conn.request_post("/webhdfs/v1" + path + "?op=create&overwrite=false", data, @authorized_header)
     end
     if res.code == '500'
       if retries >= 3
